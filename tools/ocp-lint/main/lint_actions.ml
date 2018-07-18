@@ -210,8 +210,13 @@ let clean_db_in_tmp db_dir = match db_dir with
   | Some dir ->
     let root = dir in
     let olint_dir = Filename.concat root Lint_globals.olint_dirname in
-    FileDir.remove_all (FileGen.of_string olint_dir);
-    Unix.rmdir dir
+    begin
+      try
+        FileDir.remove_all (FileGen.of_string olint_dir);
+        Unix.rmdir dir
+      with Unix.Unix_error (Unix.ENOTEMPTY, "rmdir", dir) ->
+        Format.eprintf "Warning: Failed to remove directory '%s'@." dir
+    end
 
 let init_db no_db db_dir path = match db_dir with
   | Some dir ->
@@ -537,7 +542,12 @@ let lint_sequential ~no_db ~db_dir ~severity ~pdetail ~pwarning
         file_struct
     with Not_found -> ()
   done;
-  FileDir.remove_all (FileGen.of_string tmp_file_dir);
+  begin
+    try
+      FileDir.remove_all (FileGen.of_string tmp_file_dir)
+    with Unix.Unix_error (Unix.ENOTEMPTY, "rmdir", dir) ->
+      Format.eprintf "Warning: Failed to remove directory '%s'@." dir
+  end;
   Printf.eprintf "\rRunning analyses... %d / %d" len len;
   Printf.eprintf "\nMerging database...%!";
   let sources =
